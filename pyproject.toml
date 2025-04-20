@@ -1,0 +1,10 @@
+[project]
+name = "project1899"
+version = "0.1.0"
+authors = [
+    { name = "Gary Linscott", email = "glinscott@gmail.com" }
+]
+requires-python = ">=3.9"
+dependencies = [
+    "datasets>=3.5.0",
+]
