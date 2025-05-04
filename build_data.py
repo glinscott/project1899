@@ -100,7 +100,7 @@ def clean_pg19(example):
     example["text"] = text.strip()
     return example
 
-def main():
+def load_gutenberg():
     ds = load_dataset("emozilla/pg19", num_proc=5, split="train")
     # metadata filter: keep only texts published before 1900
     ds = ds.filter(lambda x: x["publication_date"] < 1900, num_proc=_NUM_PROC)
@@ -116,7 +116,10 @@ def main():
     print(f"Metadata filter kept {count_meta} rows; regex filter removed {num_filtered} rows, keeping {count_keep} rows.")
 
     ds = ds.remove_columns(["short_book_title", "url"])
+    return ds
 
+def main():
+    ds = load_gutenberg()
     cleaned = ds.shuffle(seed=42)
     cleaned.save_to_disk("pre1900_corpus.arrow")
 
