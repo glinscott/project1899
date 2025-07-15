@@ -1,15 +1,11 @@
-from datasets import load_dataset, interleave_datasets
+from datasets import load_dataset, concatenate_datasets
 
 """
-load_dataset("TheBritishLibrary/blbooks", streaming=True)
-    .filter(lambda x: x["date"]<=1899 and x["ocr_confidence"]>0.92),
-load_dataset("dell-research-harvard/AmericanStories", "subset_years",
-                year_list=[str(y) for y in range(1800,1900)])
-
-# royal society
-# TODO - no year - need regex filtering
-https://huggingface.co/datasets/bigscience-data/roots_en_royal_society_corpus
+# TODO datasets:
+- [ ] https://huggingface.co/datasets/dell-research-harvard/AmericanStories
+- Nature journal volumes 1‑62 (need to build HF dataset)
 """
+
 import re
 import json
 import random
@@ -78,7 +74,7 @@ def debug_is_obvious_modern(ds):
     else:
         print("No filtered-out examples to sample.")
 
-HEADER_RE = re.compile(r"(produced by|internet|scanner|executive director|gutenberg|computer)", re.IGNORECASE)
+HEADER_RE = re.compile(r"(produced by|internet|scanner|executive director|gutenberg|computer|html)", re.IGNORECASE)
 
 def clean_pg19(example):
     """
@@ -89,7 +85,7 @@ def clean_pg19(example):
     text = example["text"]
     # Normalize newlines
     text = text.replace("\r\n", "\n")
-    # Look for gutenberge headers
+    # Look for gutenberg headers
     header_len = 10000
     header = text[:header_len]
     matches = list(HEADER_RE.finditer(header))
@@ -118,9 +114,25 @@ def load_gutenberg():
     ds = ds.remove_columns(["short_book_title", "url"])
     return ds
 
+def british_library_books(streaming: bool = True):
+    ds = load_dataset("biglam/blbooks-parquet", split="train", num_proc=_NUM_PROC)
+    # Doesn't need any filtering as dataset is <= 1895.
+    return ds
+
+def royal_society():
+    ds = load_dataset("badrex/royal_society_corpus_metadata", split="train", num_proc=_NUM_PROC)
+    before = ds.num_rows
+    ds = ds.filter(lambda x: x["year"] < 1900, num_proc=_NUM_PROC)
+    print(f"Metadata filter kept {ds.num_rows} rows; started with {before} rows.")
+    return ds
+
 def main():
-    ds = load_gutenberg()
-    cleaned = ds.shuffle(seed=42)
+    bl_blooks = british_library_books()
+    gutenberg = load_gutenberg()
+    rs = royal_society()
+
+    cleaned = concatenate_datasets([bl_blooks, gutenberg, rs])
+    cleaned = cleaned.shuffle(seed=42)
     cleaned.save_to_disk("pre1900_corpus.arrow")
 
 if __name__ == "__main__":
